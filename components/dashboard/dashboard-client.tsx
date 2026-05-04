@@ -78,10 +78,24 @@ export function DashboardClient({
     )
   })
 
+  const monthlyBills = bills.filter((bill) => {
+    // due_date is stored as "YYYY-MM-DD" — parse the parts directly so we
+    // don't trip on UTC-vs-local timezone shifts.
+    const [y, m] = bill.due_date.split("-").map(Number)
+    return y === currentYear && m === currentMonth + 1
+  })
+
   const totalMonthlyExpenses = monthlyExpenses.reduce(
     (sum, expense) => sum + expense.amount,
     0
   )
+
+  const variableCategoryIds = new Set(
+    categories.filter((c) => c.is_variable).map((c) => c.id)
+  )
+  const totalMonthlyVariableExpenses = monthlyExpenses
+    .filter((e) => e.category_id && variableCategoryIds.has(e.category_id))
+    .reduce((sum, e) => sum + e.amount, 0)
 
   const unpaidBills = bills.filter((bill) => !bill.is_paid)
   const totalUnpaidBills = unpaidBills.reduce((sum, bill) => sum + bill.amount, 0)
@@ -96,6 +110,7 @@ export function DashboardClient({
         <OverviewCards
           totalIncome={totalMonthlyIncome}
           totalExpenses={totalMonthlyExpenses}
+          variableExpenses={totalMonthlyVariableExpenses}
           unpaidBills={totalUnpaidBills}
           remainingBudget={remainingBudget}
         />
@@ -104,6 +119,7 @@ export function DashboardClient({
           <BudgetCategoriesCard
             categories={categories}
             expenses={monthlyExpenses}
+            bills={monthlyBills}
             setCategories={setCategories}
             userId={userId}
             onRefresh={refreshData}

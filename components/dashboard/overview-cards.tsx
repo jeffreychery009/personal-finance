@@ -6,6 +6,7 @@ import { DollarSign, TrendingDown, Receipt, Wallet } from "lucide-react"
 interface OverviewCardsProps {
   totalIncome: number
   totalExpenses: number
+  variableExpenses: number
   unpaidBills: number
   remainingBudget: number
 }
@@ -20,6 +21,7 @@ function formatCurrency(amount: number) {
 export function OverviewCards({
   totalIncome,
   totalExpenses,
+  variableExpenses,
   unpaidBills,
   remainingBudget,
 }: OverviewCardsProps) {
@@ -43,7 +45,9 @@ export function OverviewCards({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold">{formatCurrency(totalExpenses)}</div>
-          <p className="text-xs text-muted-foreground">Spent this month</p>
+          <p className="text-xs text-muted-foreground">
+            Spent this month · {formatCurrency(variableExpenses)} variable
+          </p>
         </CardContent>
       </Card>
 

@@ -170,6 +170,31 @@ export function BillsCard({
     onRefresh()
   }
 
+  const handleMarkUnpaid = async (bill: Bill) => {
+    const { error: billError } = await supabase
+      .from("bills")
+      .update({ is_paid: false })
+      .eq("id", bill.id)
+
+    if (billError) return
+
+    const { error: expenseError } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("bill_id", bill.id)
+
+    if (expenseError) {
+      // Roll the bill update back so the two writes stay consistent.
+      await supabase.from("bills").update({ is_paid: true }).eq("id", bill.id)
+      onRefresh()
+      return
+    }
+
+    setBills((prev) => prev.map((b) => (b.id === bill.id ? { ...b, is_paid: false } : b)))
+    setExpenses((prev) => prev.filter((e) => e.bill_id !== bill.id))
+    onRefresh()
+  }
+
   const unpaidBills = bills.filter((b) => !b.is_paid)
   const paidBills = bills.filter((b) => b.is_paid)
 
@@ -371,9 +396,15 @@ export function BillsCard({
                     className="flex items-center justify-between rounded-lg border border-border p-3 opacity-60"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-6 w-6 items-center justify-center rounded border border-primary bg-primary/10">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6 border-primary bg-primary/10 hover:bg-primary/20"
+                        onClick={() => handleMarkUnpaid(bill)}
+                        title="Mark as unpaid"
+                      >
                         <Check className="h-3 w-3 text-primary" />
-                      </div>
+                      </Button>
                       <span className="text-sm line-through">{bill.name}</span>
                     </div>
                     <span className="text-sm">{formatCurrency(bill.amount)}</span>

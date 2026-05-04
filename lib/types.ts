@@ -10,6 +10,7 @@ export interface BudgetCategory {
   name: string
   budget_limit: number
   color: string
+  is_variable: boolean
   created_at: string
 }
 

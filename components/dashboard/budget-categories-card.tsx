@@ -2,11 +2,13 @@
 
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { BudgetCategory, Expense } from "@/lib/types"
+import type { Bill, BudgetCategory, Expense } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,7 @@ import { Plus, Trash2 } from "lucide-react"
 interface BudgetCategoriesCardProps {
   categories: BudgetCategory[]
   expenses: Expense[]
+  bills: Bill[]
   setCategories: (fn: (prev: BudgetCategory[]) => BudgetCategory[]) => void
   userId: string
   onRefresh: () => void
@@ -46,6 +49,7 @@ function formatCurrency(amount: number) {
 export function BudgetCategoriesCard({
   categories,
   expenses,
+  bills,
   setCategories,
   userId,
   onRefresh,
@@ -54,6 +58,7 @@ export function BudgetCategoriesCard({
   const [name, setName] = useState("")
   const [budgetLimit, setBudgetLimit] = useState("")
   const [color, setColor] = useState(CATEGORY_COLORS[0])
+  const [isVariable, setIsVariable] = useState(false)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
@@ -68,6 +73,7 @@ export function BudgetCategoriesCard({
         name,
         budget_limit: parseFloat(budgetLimit),
         color,
+        is_variable: isVariable,
       })
       .select()
       .single()
@@ -77,6 +83,7 @@ export function BudgetCategoriesCard({
       setName("")
       setBudgetLimit("")
       setColor(CATEGORY_COLORS[0])
+      setIsVariable(false)
       setOpen(false)
     }
     setLoading(false)
@@ -92,9 +99,17 @@ export function BudgetCategoriesCard({
   }
 
   const getCategorySpent = (categoryId: string) => {
-    return expenses
+    // Expenses cover money already out the door (paid bills auto-create
+    // an expense). Add unpaid bills with this category so the progress
+    // bar also reflects committed-but-not-yet-paid spend without
+    // double-counting paid bills.
+    const expenseTotal = expenses
       .filter((e) => e.category_id === categoryId)
       .reduce((sum, e) => sum + e.amount, 0)
+    const unpaidBillTotal = bills
+      .filter((b) => b.category_id === categoryId && !b.is_paid)
+      .reduce((sum, b) => sum + b.amount, 0)
+    return expenseTotal + unpaidBillTotal
   }
 
   return (
@@ -152,6 +167,22 @@ export function BudgetCategoriesCard({
                   ))}
                 </div>
               </div>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="is-variable"
+                  checked={isVariable}
+                  onCheckedChange={(checked) => setIsVariable(checked === true)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="is-variable" className="font-normal">
+                    Variable expense category
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    e.g. Groceries, Gas — amount changes each time
+                  </p>
+                </div>
+              </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Adding..." : "Add Category"}
               </Button>
@@ -180,6 +211,11 @@ export function BudgetCategoriesCard({
                         style={{ backgroundColor: category.color }}
                       />
                       <span className="text-sm font-medium">{category.name}</span>
+                      {category.is_variable && (
+                        <Badge variant="outline" className="text-xs">
+                          Variable
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm ${isOverBudget ? "text-destructive font-medium" : "text-muted-foreground"}`}>
