@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Trash2 } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 
 interface BudgetCategoriesCardProps {
   categories: BudgetCategory[]
@@ -55,6 +55,7 @@ export function BudgetCategoriesCard({
   onRefresh,
 }: BudgetCategoriesCardProps) {
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [budgetLimit, setBudgetLimit] = useState("")
   const [color, setColor] = useState(CATEGORY_COLORS[0])
@@ -62,29 +63,64 @@ export function BudgetCategoriesCard({
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
-  const handleAddCategory = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingId(null)
+    setName("")
+    setBudgetLimit("")
+    setColor(CATEGORY_COLORS[0])
+    setIsVariable(false)
+  }
+
+  const handleDialogOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (!next) resetForm()
+  }
+
+  const handleStartEdit = (category: BudgetCategory) => {
+    setEditingId(category.id)
+    setName(category.name)
+    setBudgetLimit(category.budget_limit.toString())
+    setColor(category.color)
+    setIsVariable(category.is_variable ?? false)
+    setOpen(true)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    const { data, error } = await supabase
-      .from("budget_categories")
-      .insert({
-        user_id: userId,
-        name,
-        budget_limit: parseFloat(budgetLimit),
-        color,
-        is_variable: isVariable,
-      })
-      .select()
-      .single()
+    const payload = {
+      name,
+      budget_limit: parseFloat(budgetLimit),
+      color,
+      is_variable: isVariable,
+    }
 
-    if (!error && data) {
-      setCategories((prev) => [...prev, data])
-      setName("")
-      setBudgetLimit("")
-      setColor(CATEGORY_COLORS[0])
-      setIsVariable(false)
-      setOpen(false)
+    if (editingId) {
+      const { data, error } = await supabase
+        .from("budget_categories")
+        .update(payload)
+        .eq("id", editingId)
+        .select()
+        .single()
+
+      if (!error && data) {
+        setCategories((prev) => prev.map((c) => (c.id === editingId ? data : c)))
+        resetForm()
+        setOpen(false)
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("budget_categories")
+        .insert({ user_id: userId, ...payload })
+        .select()
+        .single()
+
+      if (!error && data) {
+        setCategories((prev) => [...prev, data])
+        resetForm()
+        setOpen(false)
+      }
     }
     setLoading(false)
     onRefresh()
@@ -116,7 +152,7 @@ export function BudgetCategoriesCard({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base font-semibold">Budget Categories</CardTitle>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="gap-1">
               <Plus className="h-4 w-4" />
@@ -125,9 +161,9 @@ export function BudgetCategoriesCard({
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Budget Category</DialogTitle>
+              <DialogTitle>{editingId ? "Edit Budget Category" : "Add Budget Category"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddCategory} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="category-name">Name</Label>
                 <Input
@@ -184,7 +220,13 @@ export function BudgetCategoriesCard({
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Adding..." : "Add Category"}
+                {loading
+                  ? editingId
+                    ? "Saving..."
+                    : "Adding..."
+                  : editingId
+                    ? "Save Changes"
+                    : "Add Category"}
               </Button>
             </form>
           </DialogContent>
@@ -221,6 +263,14 @@ export function BudgetCategoriesCard({
                       <span className={`text-sm ${isOverBudget ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                         {formatCurrency(spent)} / {formatCurrency(category.budget_limit)}
                       </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleStartEdit(category)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
