@@ -3,7 +3,13 @@
 import { useMemo } from "react"
 import type { BudgetCategory, Expense } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import { PieChart, Pie, Cell, Legend } from "recharts"
 
 interface SpendingChartProps {
   categories: BudgetCategory[]
@@ -56,6 +62,14 @@ export function SpendingChart({ categories, expenses }: SpendingChartProps) {
     return data
   }, [categories, expenses])
 
+  const chartConfig = useMemo<ChartConfig>(() => {
+    const config: ChartConfig = {}
+    chartData.forEach((d) => {
+      config[d.name] = { label: d.name, color: d.color }
+    })
+    return config
+  }, [chartData])
+
   const totalSpending = chartData.reduce((sum, d) => sum + d.value, 0)
 
   if (chartData.length === 0) {
@@ -79,47 +93,53 @@ export function SpendingChart({ categories, expenses }: SpendingChartProps) {
         <CardTitle className="text-base font-semibold">Spending by Category</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {chartData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value: number) => formatCurrency(value)}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "var(--radius)",
-                  fontSize: "12px",
-                }}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                formatter={(value, entry) => {
-                  const item = chartData.find((d) => d.name === value)
-                  const percentage = item ? ((item.value / totalSpending) * 100).toFixed(0) : 0
-                  return (
-                    <span className="text-xs text-foreground">
-                      {value} ({percentage}%)
-                    </span>
-                  )
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartContainer config={chartConfig} className="aspect-auto h-[300px] w-full">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="name"
+            >
+              {chartData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
+              ))}
+            </Pie>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  nameKey="name"
+                  formatter={(value, name) => (
+                    <div className="flex w-full items-center justify-between gap-4">
+                      <span className="text-muted-foreground">{name}</span>
+                      <span className="font-mono font-medium tabular-nums text-foreground">
+                        {formatCurrency(value as number)}
+                      </span>
+                    </div>
+                  )}
+                />
+              }
+            />
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              formatter={(value) => {
+                const item = chartData.find((d) => d.name === value)
+                const percentage = item ? ((item.value / totalSpending) * 100).toFixed(0) : 0
+                return (
+                  <span className="text-xs text-foreground">
+                    {value} ({percentage}%)
+                  </span>
+                )
+              }}
+            />
+          </PieChart>
+        </ChartContainer>
         <div className="mt-4 text-center">
           <p className="text-2xl font-semibold">{formatCurrency(totalSpending)}</p>
           <p className="text-xs text-muted-foreground">Total spent this month</p>
