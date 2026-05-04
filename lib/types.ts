@@ -57,3 +57,27 @@ export interface DashboardData {
   bills: Bill[]
   expenses: Expense[]
 }
+
+export type AssetType = "cash" | "investment" | "real_estate" | "vehicle" | "other"
+
+export interface Asset {
+  id: string
+  user_id: string
+  name: string
+  value: number
+  type: AssetType
+  created_at: string
+}
+
+export type DebtKind = "credit_card" | "loan"
+
+export interface Debt {
+  id: string
+  user_id: string
+  name: string
+  balance: number
+  kind: DebtKind
+  apr: number | null
+  credit_limit: number | null
+  created_at: string
+}

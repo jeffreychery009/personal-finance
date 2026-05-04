@@ -41,15 +41,18 @@ There are three Supabase client factories — pick by execution context:
 
 OAuth/magic-link callback lands at `app/auth/callback/route.ts`, which exchanges the code for a session and then redirects to `?next=` (default `/dashboard`).
 
-### Dashboard data flow
+### Pages & data flow
 
-The dashboard uses a **server-fetch → client-hydrate** pattern:
+Both authenticated pages use the same **server-fetch → client-hydrate** pattern:
 
-- `app/dashboard/page.tsx` (Server Component) fetches `budget_categories`, `income_sources`, `bills`, `expenses` from Supabase in parallel and passes them as `initial*` props.
-- `components/dashboard/dashboard-client.tsx` ("use client") owns the live state via `useState` and passes `set*` updaters down to each card.
-- Mutating cards (`bills-card`, `income-card`, `expenses-card`, `budget-categories-card`) write to Supabase via the **browser client** and update local state optimistically. They also call `onRefresh()` → `router.refresh()` to re-run the server fetch.
+- **`/dashboard`** (`app/dashboard/page.tsx` → `dashboard-client.tsx`) — fetches `budget_categories`, `income_sources`, `bills`, `expenses` in parallel.
+- **`/net-worth`** (`app/net-worth/page.tsx` → `components/net-worth/net-worth-client.tsx`) — fetches `assets`, `debts` in parallel.
 
-Derived totals (monthly income normalization across `weekly`/`bi-weekly`/`monthly`/`annually`, current-month expense filtering, unpaid-bill totals) are computed in `dashboard-client.tsx` — keep that math there rather than scattering it into card components.
+The Server Component does parallel `Promise.all` selects filtered by `user_id` and passes results as `initial*` props. The client component owns live state via `useState` and passes `set*` updaters to each card. Mutating cards write to Supabase via the **browser client**, update local state optimistically, then call `onRefresh()` → `router.refresh()`.
+
+Derived totals (monthly income normalization across `weekly`/`bi-weekly`/`monthly`/`annually`, current-month expense filtering, unpaid-bill totals) are computed in `dashboard-client.tsx`; net-worth/utilization math lives in `net-worth-overview.tsx` and `debts-card.tsx`. Keep math at that layer rather than in individual list rows.
+
+`components/dashboard/dashboard-header.tsx` is the **shared header** for both pages — it renders nav links keyed off `usePathname()`. Add new top-level routes there.
 
 ### Domain model
 
@@ -59,6 +62,8 @@ Defined in `lib/types.ts`. Supabase tables mirror these names:
 - `income_sources` — recurring income with a `frequency` enum
 - `bills` — `category_id` FK to `budget_categories`; queries embed the category via `select("*, category:budget_categories(*)")`
 - `expenses` — `category_id` FK; may also link to a `bill_id` (paying a bill creates an expense)
+- `assets` — net-worth items with a `type` enum (`cash`/`investment`/`real_estate`/`vehicle`/`other`)
+- `debts` — net-worth items with a `kind` enum (`credit_card`/`loan`); credit cards also carry `apr` and `credit_limit` (utilization = `balance / credit_limit`)
 
 All tables have `user_id`. The dashboard fetch in `app/dashboard/page.tsx` filters every `select` by `.eq("user_id", user.id)` and every card mutation passes `user_id: userId` on insert — defense in depth on top of RLS, not a substitute for it. Keep this pattern when adding new tables or queries.
 
@@ -67,7 +72,7 @@ All tables have `user_id`. The dashboard fetch in `app/dashboard/page.tsx` filte
 - shadcn/ui configured in `components.json` (style `new-york`, base color `neutral`, RSC on, icon library `lucide`). Use the CLI to add primitives; they land in `components/ui/`.
 - Tailwind v4 via `@tailwindcss/postcss` — no `tailwind.config.*`; tokens live in `app/globals.css`.
 - Theming wrapper exists at `components/theme-provider.tsx` (next-themes) but is not currently mounted in `app/layout.tsx`.
-- Forms: `react-hook-form` + `zod` via `@hookform/resolvers`. Charts: `recharts`. Toasts: both `sonner` and the older `components/ui/toast.tsx` exist — prefer `sonner`.
+- Forms: `react-hook-form` + `zod` via `@hookform/resolvers`. Charts: `recharts`. Toasts: prefer `sonner` — the `<Toaster />` is mounted in `app/layout.tsx`. The older `components/ui/toast.tsx` exists but should not be used. For destructive actions (deletes), use a sonner toast with `action`/`cancel` buttons as a confirmation prompt — see `components/net-worth/{assets,debts}-card.tsx` for the pattern.
 
 ## Project agents
 
