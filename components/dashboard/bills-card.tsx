@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { format } from "date-fns"
 import { createClient } from "@/lib/supabase/client"
 import type { Bill, BudgetCategory, Expense } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +19,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, AlertCircle, Check } from "lucide-react"
+import { Plus, Trash2, AlertCircle, Check, CalendarIcon } from "lucide-react"
 
 interface BillsCardProps {
   bills: Bill[]
@@ -76,7 +84,8 @@ export function BillsCard({
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
-  const [dueDate, setDueDate] = useState("")
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
+  const [dueDateOpen, setDueDateOpen] = useState(false)
   const [isRecurring, setIsRecurring] = useState(false)
   const [frequency, setFrequency] = useState<string>("")
   const [categoryId, setCategoryId] = useState<string>("")
@@ -85,6 +94,7 @@ export function BillsCard({
 
   const handleAddBill = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!dueDate) return
     setLoading(true)
 
     const { data, error } = await supabase
@@ -93,7 +103,7 @@ export function BillsCard({
         user_id: userId,
         name,
         amount: parseFloat(amount),
-        due_date: dueDate,
+        due_date: format(dueDate, "yyyy-MM-dd"),
         is_recurring: isRecurring,
         frequency: isRecurring ? frequency : null,
         category_id: categoryId || null,
@@ -113,7 +123,7 @@ export function BillsCard({
   const resetForm = () => {
     setName("")
     setAmount("")
-    setDueDate("")
+    setDueDate(undefined)
     setIsRecurring(false)
     setFrequency("")
     setCategoryId("")
@@ -204,13 +214,33 @@ export function BillsCard({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bill-due-date">Due Date</Label>
-                <Input
-                  id="bill-due-date"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  required
-                />
+                <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="bill-due-date"
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dueDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={(date) => {
+                        setDueDate(date)
+                        setDueDateOpen(false)
+                      }}
+                      autoFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bill-category">Category (optional)</Label>
