@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePicker, dateToISO } from "@/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -56,13 +57,14 @@ export function ExpensesCard({
   const [open, setOpen] = useState(false)
   const [description, setDescription] = useState("")
   const [amount, setAmount] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [date, setDate] = useState<Date | undefined>(() => new Date())
   const [categoryId, setCategoryId] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!date) return
     setLoading(true)
 
     const { data, error } = await supabase
@@ -71,7 +73,7 @@ export function ExpensesCard({
         user_id: userId,
         description,
         amount: parseFloat(amount),
-        date,
+        date: dateToISO(date),
         category_id: categoryId || null,
       })
       .select("*, category:budget_categories(*)")
@@ -89,7 +91,7 @@ export function ExpensesCard({
   const resetForm = () => {
     setDescription("")
     setAmount("")
-    setDate(new Date().toISOString().split("T")[0])
+    setDate(new Date())
     setCategoryId("")
   }
 
@@ -154,12 +156,10 @@ export function ExpensesCard({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expense-date">Date</Label>
-                <Input
+                <DatePicker
                   id="expense-date"
-                  type="date"
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
+                  onChange={setDate}
                 />
               </div>
               <div className="space-y-2">

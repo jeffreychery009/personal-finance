@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePicker, dateToISO } from "@/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -63,7 +64,7 @@ export function IncomeCard({
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
   const [frequency, setFrequency] = useState<string>("")
-  const [nextPayDate, setNextPayDate] = useState("")
+  const [nextPayDate, setNextPayDate] = useState<Date | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
@@ -78,7 +79,7 @@ export function IncomeCard({
         name,
         amount: parseFloat(amount),
         frequency,
-        next_pay_date: nextPayDate || null,
+        next_pay_date: dateToISO(nextPayDate),
       })
       .select()
       .single()
@@ -96,7 +97,7 @@ export function IncomeCard({
     setName("")
     setAmount("")
     setFrequency("")
-    setNextPayDate("")
+    setNextPayDate(undefined)
   }
 
   const handleDeleteIncome = async (id: string) => {
@@ -176,11 +177,10 @@ export function IncomeCard({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="next-pay-date">Next Pay Date (optional)</Label>
-                <Input
+                <DatePicker
                   id="next-pay-date"
-                  type="date"
                   value={nextPayDate}
-                  onChange={(e) => setNextPayDate(e.target.value)}
+                  onChange={setNextPayDate}
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>

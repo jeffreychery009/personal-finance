@@ -21,6 +21,7 @@ Auth and data fetching will silently break without these (read by `lib/supabase/
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `AI_GATEWAY_API_KEY` — read by `app/api/goals/insights/route.ts` via the `ai` package's default Vercel AI Gateway provider
 
 ## Architecture
 
@@ -73,6 +74,7 @@ All tables have `user_id`. The dashboard fetch in `app/dashboard/page.tsx` filte
 - Tailwind v4 via `@tailwindcss/postcss` — no `tailwind.config.*`; tokens live in `app/globals.css`.
 - Theming wrapper exists at `components/theme-provider.tsx` (next-themes) but is not currently mounted in `app/layout.tsx`.
 - Forms: `react-hook-form` + `zod` via `@hookform/resolvers`. Charts: `recharts`. Toasts: prefer `sonner` — the `<Toaster />` is mounted in `app/layout.tsx`. The older `components/ui/toast.tsx` exists but should not be used. For destructive actions (deletes), use a sonner toast with `action`/`cancel` buttons as a confirmation prompt — see `components/net-worth/{assets,debts}-card.tsx` for the pattern.
+- **Dates: always use `<DatePicker>` from `components/ui/date-picker.tsx`** (a shadcn Popover + Calendar wrapper). Never use `<Input type="date">` — the native picker doesn't match the rest of the UI. Form state should be `Date | undefined`; convert at the Supabase boundary with `dateToISO(date)` (writes) and `dateFromISO(row.field)` (reads), both exported from the same file. Those helpers parse `"YYYY-MM-DD"` as local time to avoid the UTC-midnight off-by-one.
 
 ## Project agents
 

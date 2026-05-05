@@ -20,6 +20,7 @@ interface DashboardHeaderProps {
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/net-worth", label: "Net Worth" },
+  { href: "/goals", label: "Goals" },
 ] as const
 
 export function DashboardHeader({ userEmail, onSignOut }: DashboardHeaderProps) {

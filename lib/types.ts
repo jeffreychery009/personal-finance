@@ -81,3 +81,17 @@ export interface Debt {
   credit_limit: number | null
   created_at: string
 }
+
+export type GoalType = "savings" | "debt_payoff" | "purchase" | "investment" | "other"
+
+export interface Goal {
+  id: string
+  user_id: string
+  name: string
+  type: GoalType
+  target_amount: number
+  current_amount: number
+  target_date: string | null
+  notes: string | null
+  created_at: string
+}

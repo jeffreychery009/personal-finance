@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar } from "@/components/ui/calendar"
-import { cn } from "@/lib/utils"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -19,11 +18,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, AlertCircle, Check, CalendarIcon } from "lucide-react"
+import { Plus, Trash2, AlertCircle, Check } from "lucide-react"
 
 interface BillsCardProps {
   bills: Bill[]
@@ -85,7 +79,6 @@ export function BillsCard({
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
-  const [dueDateOpen, setDueDateOpen] = useState(false)
   const [isRecurring, setIsRecurring] = useState(false)
   const [frequency, setFrequency] = useState<string>("")
   const [categoryId, setCategoryId] = useState<string>("")
@@ -239,33 +232,11 @@ export function BillsCard({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bill-due-date">Due Date</Label>
-                <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="bill-due-date"
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dueDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate}
-                      onSelect={(date) => {
-                        setDueDate(date)
-                        setDueDateOpen(false)
-                      }}
-                      autoFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  id="bill-due-date"
+                  value={dueDate}
+                  onChange={setDueDate}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bill-category">Category (optional)</Label>
