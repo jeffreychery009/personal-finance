@@ -6,7 +6,8 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
       "Bash(npx skills *)",
-      "Bash(pnpm add *)"
+      "Bash(pnpm add *)",
+      "Bash(E2E_TEST_EMAIL='testuser1@example.com' E2E_TEST_PASSWORD='test123!' pnpm test:e2e -g \"login flow|sign-out flow\")"
     ]
   }
 }

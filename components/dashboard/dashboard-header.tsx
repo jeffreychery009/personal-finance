@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { User, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface DashboardHeaderProps {
   userEmail: string
@@ -49,20 +50,23 @@ export function DashboardHeader({ userEmail, onSignOut }: DashboardHeaderProps) 
           })}
         </nav>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{userEmail}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onSignOut} className="gap-2 text-destructive">
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{userEmail}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onSignOut} className="gap-2 text-destructive">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   )

@@ -1,0 +1,5 @@
+- [shadcn CardTitle is a div](shadcn-card-title.md) — `getByRole('heading', ...)` will not find auth-page titles; use `getByText`.
+- [Supabase project email validation](supabase-email-validation.md) — `@example.com` is rejected as "invalid"; default to `mailinator.com` for synthetic addresses.
+- [Supabase signup rate limit](supabase-signup-rate-limit.md) — repeated sign-ups in a short window return "email rate limit exceeded"; treat as a soft skip.
+- [Auth selectors](auth-selectors.md) — stable accessible names for the login, sign-up, and sign-out controls in this app.
+- [Sign-up creates pending user](signup-confirmation-required.md) — Supabase confirmation is on, so a freshly signed-up account cannot immediately log in.
