@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, CreditCard, Landmark } from "lucide-react"
+import { Plus, Trash2, CreditCard, Landmark, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DebtsCardProps {
@@ -66,6 +66,9 @@ export function DebtsCard({ debts, setDebts, userId, onRefresh }: DebtsCardProps
   const [apr, setApr] = useState("")
   const [creditLimit, setCreditLimit] = useState("")
   const [loading, setLoading] = useState(false)
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null)
+  const [editBalance, setEditBalance] = useState("")
+  const [editLoading, setEditLoading] = useState(false)
   const supabase = createClient()
 
   const resetForm = () => {
@@ -127,6 +130,48 @@ export function DebtsCard({ debts, setDebts, userId, onRefresh }: DebtsCardProps
   const handleDialogOpenChange = (next: boolean) => {
     setOpen(next)
     if (!next) resetForm()
+  }
+
+  const openEditBalance = (debt: Debt) => {
+    setEditingDebt(debt)
+    setEditBalance(debt.balance.toString())
+  }
+
+  const handleEditOpenChange = (next: boolean) => {
+    if (!next) {
+      setEditingDebt(null)
+      setEditBalance("")
+    }
+  }
+
+  const handleEditBalance = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingDebt) return
+    const newBalance = parseFloat(editBalance)
+    if (Number.isNaN(newBalance) || newBalance < 0) {
+      toast.error("Enter a valid balance")
+      return
+    }
+    setEditLoading(true)
+    const { data, error } = await supabase
+      .from("debts")
+      .update({ balance: newBalance })
+      .eq("id", editingDebt.id)
+      .select()
+      .single()
+
+    if (error || !data) {
+      toast.error("Failed to update balance", { description: error?.message })
+      setEditLoading(false)
+      return
+    }
+
+    setDebts((prev) => prev.map((d) => (d.id === data.id ? data : d)))
+    toast.success(`Updated "${data.name}" balance`)
+    setEditingDebt(null)
+    setEditBalance("")
+    setEditLoading(false)
+    onRefresh()
   }
 
   const sorted = [...debts].sort((a, b) => {
@@ -265,6 +310,15 @@ export function DebtsCard({ debts, setDebts, userId, onRefresh }: DebtsCardProps
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                            onClick={() => openEditBalance(debt)}
+                            aria-label={`Edit balance for ${debt.name}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-6 w-6 text-muted-foreground hover:text-destructive"
                             onClick={() => confirmDeleteDebt(debt)}
                           >
@@ -332,6 +386,33 @@ export function DebtsCard({ debts, setDebts, userId, onRefresh }: DebtsCardProps
           </div>
         )}
       </CardContent>
+      <Dialog open={editingDebt !== null} onOpenChange={handleEditOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingDebt ? `Edit balance · ${editingDebt.name}` : "Edit balance"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditBalance} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-balance">Current Balance</Label>
+              <Input
+                id="edit-balance"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editBalance}
+                onChange={(e) => setEditBalance(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
