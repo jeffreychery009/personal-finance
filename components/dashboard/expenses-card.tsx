@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import type { Expense, BudgetCategory } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DatePicker, dateToISO } from "@/components/ui/date-picker"
+import { DatePicker, dateToISO, dateFromISO } from "@/components/ui/date-picker"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Trash2, Receipt } from "lucide-react"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import { Plus, Trash2, Receipt, Pencil } from "lucide-react"
+
+const PAGE_SIZE = 10
 
 interface ExpensesCardProps {
   expenses: Expense[]
@@ -60,7 +71,21 @@ export function ExpensesCard({
   const [date, setDate] = useState<Date | undefined>(() => new Date())
   const [categoryId, setCategoryId] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+  const [editDescription, setEditDescription] = useState("")
+  const [editAmount, setEditAmount] = useState("")
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined)
+  const [editCategoryId, setEditCategoryId] = useState<string>("")
+  const [editLoading, setEditLoading] = useState(false)
+  const [page, setPage] = useState(1)
   const supabase = createClient()
+
+  const totalPages = Math.max(1, Math.ceil(expenses.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageExpenses = useMemo(
+    () => expenses.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [expenses, currentPage],
+  )
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -100,6 +125,62 @@ export function ExpensesCard({
     if (!error) {
       setExpenses((prev) => prev.filter((e) => e.id !== id))
     }
+    onRefresh()
+  }
+
+  const openEditExpense = (expense: Expense) => {
+    setEditingExpense(expense)
+    setEditDescription(expense.description)
+    setEditAmount(expense.amount.toString())
+    setEditDate(dateFromISO(expense.date))
+    setEditCategoryId(expense.category_id ?? "")
+  }
+
+  const handleEditOpenChange = (next: boolean) => {
+    if (!next) {
+      setEditingExpense(null)
+      setEditDescription("")
+      setEditAmount("")
+      setEditDate(undefined)
+      setEditCategoryId("")
+    }
+  }
+
+  const handleEditExpense = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingExpense || !editDate) return
+    const newAmount = parseFloat(editAmount)
+    if (Number.isNaN(newAmount) || newAmount < 0) {
+      toast.error("Enter a valid amount")
+      return
+    }
+    setEditLoading(true)
+    const { data, error } = await supabase
+      .from("expenses")
+      .update({
+        description: editDescription,
+        amount: newAmount,
+        date: dateToISO(editDate),
+        category_id: editCategoryId || null,
+      })
+      .eq("id", editingExpense.id)
+      .select("*, category:budget_categories(*)")
+      .single()
+
+    if (error || !data) {
+      toast.error("Failed to update expense", { description: error?.message })
+      setEditLoading(false)
+      return
+    }
+
+    setExpenses((prev) => prev.map((ex) => (ex.id === data.id ? data : ex)))
+    toast.success(`Updated "${data.description}"`)
+    setEditingExpense(null)
+    setEditDescription("")
+    setEditAmount("")
+    setEditDate(undefined)
+    setEditCategoryId("")
+    setEditLoading(false)
     onRefresh()
   }
 
@@ -197,7 +278,7 @@ export function ExpensesCard({
           </p>
         ) : (
           <div className="space-y-2">
-            {expenses.slice(0, 10).map((expense) => (
+            {pageExpenses.map((expense) => (
               <div
                 key={expense.id}
                 className="flex items-center justify-between rounded-lg border border-border p-3"
@@ -237,6 +318,15 @@ export function ExpensesCard({
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                    onClick={() => openEditExpense(expense)}
+                    aria-label={`Edit ${expense.description}`}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDeleteExpense(expense.id)}
                   >
@@ -245,14 +335,117 @@ export function ExpensesCard({
                 </div>
               </div>
             ))}
-            {expenses.length > 10 && (
-              <p className="text-center text-xs text-muted-foreground pt-2">
-                Showing 10 of {expenses.length} expenses
-              </p>
+            {totalPages > 1 && (
+              <Pagination className="pt-2">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      aria-disabled={currentPage === 1}
+                      className={
+                        currentPage === 1 ? "pointer-events-none opacity-50" : undefined
+                      }
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage > 1) setPage(currentPage - 1)
+                      }}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setPage(p)
+                        }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      aria-disabled={currentPage === totalPages}
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : undefined
+                      }
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage < totalPages) setPage(currentPage + 1)
+                      }}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             )}
           </div>
         )}
       </CardContent>
+      <Dialog open={editingExpense !== null} onOpenChange={handleEditOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingExpense ? `Edit · ${editingExpense.description}` : "Edit expense"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditExpense} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-expense-description">Description</Label>
+              <Input
+                id="edit-expense-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-expense-amount">Amount</Label>
+              <Input
+                id="edit-expense-amount"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-expense-date">Date</Label>
+              <DatePicker id="edit-expense-date" value={editDate} onChange={setEditDate} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-expense-category">Category (optional)</Label>
+              <Select value={editCategoryId} onValueChange={setEditCategoryId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        {cat.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

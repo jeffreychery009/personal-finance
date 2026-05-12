@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Pencil } from "lucide-react"
 
 interface AssetsCardProps {
   assets: Asset[]
@@ -60,6 +60,11 @@ export function AssetsCard({ assets, setAssets, userId, onRefresh }: AssetsCardP
   const [value, setValue] = useState("")
   const [type, setType] = useState<AssetType | "">("")
   const [loading, setLoading] = useState(false)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editValue, setEditValue] = useState("")
+  const [editType, setEditType] = useState<AssetType | "">("")
+  const [editLoading, setEditLoading] = useState(false)
   const supabase = createClient()
 
   const resetForm = () => {
@@ -116,6 +121,54 @@ export function AssetsCard({ assets, setAssets, userId, onRefresh }: AssetsCardP
   const handleDialogOpenChange = (next: boolean) => {
     setOpen(next)
     if (!next) resetForm()
+  }
+
+  const openEditAsset = (asset: Asset) => {
+    setEditingAsset(asset)
+    setEditName(asset.name)
+    setEditValue(asset.value.toString())
+    setEditType(asset.type)
+  }
+
+  const handleEditOpenChange = (next: boolean) => {
+    if (!next) {
+      setEditingAsset(null)
+      setEditName("")
+      setEditValue("")
+      setEditType("")
+    }
+  }
+
+  const handleEditAsset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAsset || !editType) return
+    const newValue = parseFloat(editValue)
+    if (Number.isNaN(newValue) || newValue < 0) {
+      toast.error("Enter a valid value")
+      return
+    }
+    setEditLoading(true)
+    const { data, error } = await supabase
+      .from("assets")
+      .update({ name: editName, value: newValue, type: editType })
+      .eq("id", editingAsset.id)
+      .select()
+      .single()
+
+    if (error || !data) {
+      toast.error("Failed to update asset", { description: error?.message })
+      setEditLoading(false)
+      return
+    }
+
+    setAssets((prev) => prev.map((a) => (a.id === data.id ? data : a)))
+    toast.success(`Updated "${data.name}"`)
+    setEditingAsset(null)
+    setEditName("")
+    setEditValue("")
+    setEditType("")
+    setEditLoading(false)
+    onRefresh()
   }
 
   const grouped = TYPE_ORDER.map((t) => ({
@@ -218,6 +271,15 @@ export function AssetsCard({ assets, setAssets, userId, onRefresh }: AssetsCardP
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEditAsset(asset)}
+                        aria-label={`Edit ${asset.name}`}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-6 w-6 text-muted-foreground hover:text-destructive"
                         onClick={() => confirmDeleteAsset(asset)}
                       >
@@ -231,6 +293,60 @@ export function AssetsCard({ assets, setAssets, userId, onRefresh }: AssetsCardP
           </div>
         )}
       </CardContent>
+      <Dialog open={editingAsset !== null} onOpenChange={handleEditOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingAsset ? `Edit · ${editingAsset.name}` : "Edit asset"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditAsset} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-asset-name">Name</Label>
+              <Input
+                id="edit-asset-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-asset-value">Value</Label>
+              <Input
+                id="edit-asset-value"
+                type="number"
+                step="0.01"
+                min="0"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-asset-type">Type</Label>
+              <Select
+                value={editType}
+                onValueChange={(v) => setEditType(v as AssetType)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSET_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="w-full" disabled={editLoading}>
+              {editLoading ? "Saving..." : "Save"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
